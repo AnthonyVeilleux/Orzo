@@ -61,6 +61,12 @@ public class FPSController : MonoBehaviour
         currentMovement.y += gravity * Time.deltaTime;
     }
     void HandleRotation(){
+        // Don't rotate camera when rotating grabbed object
+        if (inputHandler.RotateInput)
+        {
+            return;
+        }
+
         float mouseX = inputHandler.LookInput.x * mouseSensitivity;
         float mouseY = inputHandler.LookInput.y * mouseSensitivity;
 
@@ -74,7 +80,7 @@ public class FPSController : MonoBehaviour
     void HandleGrabbing(){
         Grab grabComponent = GetComponent<Grab>();
         if(grabComponent != null){
-            grabComponent.Superliminal(inputHandler.GrabInput);
+            grabComponent.Superliminal(inputHandler.GrabInput, inputHandler.RotateInput, inputHandler.LookInput);
         }
     }
 }

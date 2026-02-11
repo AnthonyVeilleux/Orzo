@@ -1,0 +1,19 @@
+fileFormatVersion: 2
+guid: 397122f2e7afcb643bc5232d77a09e1c
+timeCreated: 18446744011573954816
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 111425
+  packageName: ProGrids
+  packageVersion: 1.0
+  assetPath: Assets/ProCore/ProGrids/About/Editor/pg_AboutWindow.cs
+  uploadId: 229594

@@ -17,18 +17,21 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private string jumpActionName = "Jump";
     [SerializeField] private string sprintActionName = "Sprint";
     [SerializeField] private string grabActionName = "Grab";
+    [SerializeField] private string rotateActionName = "Rotate";
 
     private InputAction moveAction;
     private InputAction lookAction;
     private InputAction jumpAction;
     private InputAction sprintAction;
     private InputAction grabAction;
+    private InputAction rotateAction;
 
     public Vector2 MoveInput { get; private set; }
     public Vector2 LookInput { get; private set; }
     public bool JumpInput { get; private set; } 
     public bool SprintInput { get; private set; }
     public bool GrabInput { get; private set; }
+    public bool RotateInput { get; private set; }
     public static PlayerInputHandler instance { get; private set; }
 
     private void Awake()
@@ -48,6 +51,7 @@ public class PlayerInputHandler : MonoBehaviour
         jumpAction = playerInput.FindActionMap(actionMapName).FindAction(jumpActionName);
         sprintAction = playerInput.FindActionMap(actionMapName).FindAction(sprintActionName);
         grabAction = playerInput.FindActionMap(actionMapName).FindAction(grabActionName);
+        rotateAction = playerInput.FindActionMap(actionMapName).FindAction(rotateActionName);
         RegisterInputActions();
     }
     void RegisterInputActions()
@@ -66,6 +70,9 @@ public class PlayerInputHandler : MonoBehaviour
 
         grabAction.performed += ctx => GrabInput = true;
         grabAction.canceled += ctx => GrabInput = false;
+
+        rotateAction.performed += ctx => RotateInput = true;
+        rotateAction.canceled += ctx => RotateInput = false;
     }
     private void OnEnable()
     {
@@ -74,6 +81,7 @@ public class PlayerInputHandler : MonoBehaviour
         jumpAction.Enable();
         sprintAction.Enable();
         grabAction.Enable();
+        rotateAction.Enable();
     }
     private void OnDisable()
     {
@@ -82,5 +90,6 @@ public class PlayerInputHandler : MonoBehaviour
         jumpAction.Disable();
         sprintAction.Disable();
         grabAction.Disable();
+        rotateAction.Disable();
     }
 }
