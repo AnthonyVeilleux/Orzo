@@ -54,6 +54,11 @@ public class FPSController : MonoBehaviour
 
 }
     void HandleJumping(){
+        if(characterController.isGrounded && currentMovement.y < 0)
+        {
+            currentMovement.y = -2f;
+        }
+
         if (characterController.isGrounded && inputHandler.JumpInput)
         {
             currentMovement.y = jumpForce;
