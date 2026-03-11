@@ -17,10 +17,10 @@ MonoBehaviour:
   debugView: 0
   debugSectionsChannels: 7
   debugPerceptualSections: 0
-  discontinuityInput: 15
-  depthSensitivity: 0.225
-  depthDistanceModulation: 0.495
-  grazingAngleMaskPower: 0.2
+  discontinuityInput: 7
+  depthSensitivity: 0.148
+  depthDistanceModulation: 0.438
+  grazingAngleMaskPower: 0.504
   grazingAngleMaskHardness: 1
   normalSensitivity: 0.4
   luminanceSensitivity: 0.3
@@ -75,6 +75,6 @@ MonoBehaviour:
   heightFadeStart: 1
   heightFadeDistance: 0.5
   blendMode: 0
-  showSectionMapSection: 0
+  showSectionMapSection: 1
   showDiscontinuitySection: 1
   showOutlineSection: 1

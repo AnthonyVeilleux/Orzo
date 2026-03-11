@@ -19,21 +19,36 @@ public class Teleport : MonoBehaviour
         TeleportObject(other.gameObject);
     }
 
+
     private void TeleportObject(GameObject obj)
-    {
-        if (obj.CompareTag("Player"))
-        {
-            CharacterController cc = obj.GetComponent<CharacterController>();
-            if (cc != null)
-            {
-                cc.enabled = false;
-                obj.transform.position = teleportLocation.transform.position; // Teleport the player to a new position
-                cc.enabled = true;
-            }
-            else
-            {
-                obj.transform.position = teleportLocation.transform.position; // Teleport the player to a new position
-            }
-        }
-    }
+{
+    if (!obj.CompareTag("Player"))
+        return;
+
+    Transform player = obj.transform;
+
+    // compute player position relative to teleport trigger
+    Vector3 relativePos = transform.InverseTransformPoint(player.position);
+
+    // move player relative to destination
+    Vector3 newPos = teleportLocation.transform.TransformPoint(relativePos);
+
+    // compute relative rotation
+    Quaternion relativeRot =
+        Quaternion.Inverse(transform.rotation) * player.rotation;
+
+    Quaternion newRot =
+        teleportLocation.transform.rotation * relativeRot;
+
+    CharacterController cc = obj.GetComponent<CharacterController>();
+
+    if (cc != null)
+        cc.enabled = false;
+
+    player.position = newPos;
+    player.rotation = newRot;
+
+    if (cc != null)
+        cc.enabled = true;
+}
 }

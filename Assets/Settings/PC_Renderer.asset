@@ -53,6 +53,27 @@ MonoBehaviour:
     section: {fileID: 4800000, guid: 555b69c4bab64af2aab316a4335ad6be, type: 3}
     sectionMask: {fileID: 4800000, guid: 66bb1bcc44054ea3bf6082c4d4e9edf9, type: 3}
     outline: {fileID: 4800000, guid: 0049e25744c864ee4916fc340cf7957f, type: 3}
+--- !u!114 &-555804499784800448
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1614fc811f8f184697d9bee70ab9fe5, type: 3}
+  m_Name: DecalRendererFeature
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.DecalRendererFeature
+  m_Active: 1
+  m_Settings:
+    technique: 0
+    maxDrawDistance: 1000
+    decalLayers: 0
+    dBufferSettings:
+      surfaceData: 2
+    screenSpaceSettings:
+      normalBlend: 0
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -82,7 +103,8 @@ MonoBehaviour:
   - {fileID: -5242346101338826436}
   - {fileID: -4012547500537779331}
   - {fileID: -7272876262642135686}
-  m_RendererFeatureMap: ad6b866f10d7b46c3c990bf8fe713fb77d6b10c24e9150c87a4dd88d928d119b
+  - {fileID: -555804499784800448}
+  m_RendererFeatureMap: ad6b866f10d7b46c3c990bf8fe713fb77d6b10c24e9150c87a4dd88d928d119b4067c391c06249f8
   m_UseNativeRenderPass: 1
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
