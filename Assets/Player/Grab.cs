@@ -102,6 +102,10 @@ public class Grab : MonoBehaviour
         if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out hit, Mathf.Infinity, targetMask))
         {
             // ========== RAY HIT SOMETHING WE CAN GRAB ==========
+            if (hit.collider.CompareTag("NoObjects"))
+            {
+                return; // Don't grab if we hit something tagged "NoObjects"
+            }
             target = hit.transform; // Store reference to the object's transform
             targetCollider = hit.collider; // Cache the collider for later use (ignoring collision with player)
             // ========== DISABLE PHYSICS ON GRABBED OBJECT ==========
@@ -193,11 +197,11 @@ public class Grab : MonoBehaviour
                 ignoreTargetMask
             );
             
-            // Check if we hit anything other than ourselves
+            // Check if we hit anything other than ourselves or the player
             bool hitSomething = false;
             foreach (Collider hit in hits)
             {
-                if (hit != targetCollider)
+                if (hit != targetCollider && hit != playerCollider)
                 {
                     Debug.Log("Collision detected with: " + hit.gameObject.name);
                     hitSomething = true;

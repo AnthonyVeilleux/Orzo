@@ -3,7 +3,9 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 3
-  tags: []
+  tags:
+  - Target
+  - NoObjects
   layers:
   - Default
   - TransparentFX
@@ -17,7 +19,7 @@ TagManager:
   - Goal
   - Death
   - 
-  - 
+  - NoObjects
   - 
   - 
   - 

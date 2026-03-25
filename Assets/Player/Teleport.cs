@@ -40,15 +40,21 @@ public class Teleport : MonoBehaviour
     Quaternion newRot =
         teleportLocation.transform.rotation * relativeRot;
 
-    CharacterController cc = obj.GetComponent<CharacterController>();
-
-    if (cc != null)
-        cc.enabled = false;
-
-    player.position = newPos;
-    player.rotation = newRot;
-
-    if (cc != null)
-        cc.enabled = true;
+    TeleportTo(obj, newPos, newRot);
 }
+
+    public static void TeleportTo(GameObject obj, Vector3 targetPos, Quaternion targetRot)
+    {
+        Transform player = obj.transform;
+        CharacterController cc = obj.GetComponent<CharacterController>();
+
+        if (cc != null)
+            cc.enabled = false;
+
+        player.position = targetPos;
+        player.rotation = targetRot;
+
+        if (cc != null)
+            cc.enabled = true;
+    }
 }
