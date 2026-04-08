@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8871715725593717521}
   - component: {fileID: 1486587753358766456}
   - component: {fileID: 8657687584486293194}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: Collider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -99,6 +99,7 @@ MonoBehaviour:
   doorLerpDuration: 0.2
   doorClosedPosition: {x: 0, y: 0, z: 0}
   doorOpenPosition: {x: 0, y: 3, z: 0}
+  objectsOnPlate: 0
 --- !u!1 &3325729340541496682
 GameObject:
   m_ObjectHideFlags: 0
@@ -112,7 +113,7 @@ GameObject:
   - component: {fileID: 5871224965521733492}
   - component: {fileID: 1483146390725142199}
   - component: {fileID: 5643368041927730108}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: PressurePlate
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -252,7 +253,7 @@ GameObject:
   - component: {fileID: 4218676470773862920}
   - component: {fileID: 3775452428099025288}
   - component: {fileID: 912435798211811849}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: Cube (10)
   m_TagString: Untagged
   m_Icon: {fileID: 0}

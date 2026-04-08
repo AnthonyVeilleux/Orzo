@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Handles picking up, scaling, and rotating objects in a "Superliminal" style mechanic.
@@ -7,6 +8,7 @@ using UnityEngine;
 /// </summary>
 public class Grab : MonoBehaviour
 {
+    public UnityEngine.UI.Image crosshairImage;
     // ========== INSPECTOR FIELDS ==========
     [Header("Components")]
     public Transform target; // Reference to the currently grabbed object's Transform
@@ -19,6 +21,7 @@ public class Grab : MonoBehaviour
     [SerializeField] private float rotationSensitivity = 0.5f; // How fast object rotates with mouse
      [SerializeField] private float distanceFromCamera = 0.2f; // How far from the camera the object is initialy placed before being dropped and then rescaled.
     [SerializeField] private Collider playerCollider; // Reference to player's collider to ignore collision while holding
+    [SerializeField] private LayerMask releaseCollisionMask = ~0; // Layers that block release placement
     [SerializeField] private float releaseStepSize = 0.05f; // How far to move object each step when releasing
     [SerializeField] private float collisionPullback = 0.1f; // How far to pull back from collision point
 
@@ -33,6 +36,7 @@ public class Grab : MonoBehaviour
     private Rigidbody targetRigidbody; // Cache of the grabbed object's rigidbody component
     private Quaternion rotationOffset; // How rotated is the object relative to camera when grabbed?
     private Collider targetCollider; // Cache of the grabbed object's collider component
+    private readonly Collider[] releaseOverlapCandidates = new Collider[64]; // Broad-phase candidates for precise penetration tests
 
 
     /// <summary>
@@ -99,7 +103,8 @@ public class Grab : MonoBehaviour
         RaycastHit hit; // Stores information about what the ray hit
         
         // Shoot a ray from camera position, in camera forward direction, infinite distance, only hitting targetMask layers
-        if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out hit, Mathf.Infinity, targetMask))
+        if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out hit, Mathf.Infinity) && ((1 << hit.collider.gameObject.layer) & targetMask) != 0)
+        
         {
             // ========== RAY HIT SOMETHING WE CAN GRAB ==========
             if (hit.collider.CompareTag("NoObjects"))
@@ -138,8 +143,6 @@ public class Grab : MonoBehaviour
             // Remember original scale BEFORE any scaling
             originalScale = target.localScale;
 
-
-    
         }
     }
 
@@ -154,8 +157,27 @@ public class Grab : MonoBehaviour
             return;
         }
 
+        if (targetCollider == null)
+        {
+            targetCollider = target.GetComponent<Collider>();
+            if (targetCollider == null)
+            {
+                target = null;
+                targetRigidbody = null;
+                return;
+            }
+        }
+
+        if (Camera.main == null)
+        {
+            return;
+        }
+
         // ========== RESTORE COLLISION WITH PLAYER ==========
         // Re-enable collision between target and player
+        
+        // Turn crosshair to green when releasing object
+
         if (playerCollider != null && targetCollider != null)
         {
             Physics.IgnoreCollision(targetCollider, playerCollider, false); // Restore collision
@@ -164,11 +186,8 @@ public class Grab : MonoBehaviour
         // ========== MOVE AWAY FROM CAMERA UNTIL COLLISION ==========
         Vector3 cameraPos = Camera.main.transform.position;
         Vector3 cameraForward = Camera.main.transform.forward;
+        int collisionMask = releaseCollisionMask.value == 0 ? ~0 : releaseCollisionMask.value;
         float currentDistance = distanceFromCamera;
-        
-        // Track last valid position
-        Vector3 lastValidPosition = target.position;
-        Vector3 lastValidScale = target.localScale;
         
         // Move step-by-step forward until collision
         int maxSteps = 1000; // Safety limit to prevent infinite loop
@@ -179,7 +198,7 @@ public class Grab : MonoBehaviour
             
             // Calculate new position and scale
             Vector3 newPosition = cameraPos + cameraForward * currentDistance;
-            float scaleFactor = currentDistance / originalDistance;
+            float scaleFactor = currentDistance / Mathf.Max(originalDistance, 0.0001f);
             Vector3 newScale = originalScale * scaleFactor;
             
             // Apply new position and scale
@@ -190,38 +209,19 @@ public class Grab : MonoBehaviour
             Physics.SyncTransforms();
             
             // Check for collision using actual collider
-            Collider[] hits = Physics.OverlapBox(
-                targetCollider.bounds.center,
-                targetCollider.bounds.extents,
-                target.rotation,
-                ignoreTargetMask
-            );
-            
-            // Check if we hit anything other than ourselves or the player
-            bool hitSomething = false;
-            foreach (Collider hit in hits)
-            {
-                if (hit != targetCollider && hit != playerCollider)
-                {
-                    Debug.Log("Collision detected with: " + hit.gameObject.name);
-                    hitSomething = true;
-                    break;
-                }
-            }
+            // Check collision using the actual collider shape (more accurate than a bounds box).
+            bool hitSomething = IsCurrentPlacementColliding(collisionMask);
             
             if (hitSomething)
             {
                 // Collision detected - move back to last valid position and pull back a bit more
-                float finalDistance = currentDistance - releaseStepSize - collisionPullback;
+                float finalDistance = currentDistance - releaseStepSize;
                 target.position = cameraPos + cameraForward * finalDistance;
-                float finalScaleFactor = finalDistance / originalDistance;
+                float finalScaleFactor = finalDistance / Mathf.Max(originalDistance, 0.0001f);
                 target.localScale = originalScale * finalScaleFactor;
                 break;
             }
             
-            // Update last valid position
-            lastValidPosition = newPosition;
-            lastValidScale = newScale;
         }
 
         // ========== RE-ENABLE PHYSICS ==========
@@ -234,6 +234,48 @@ public class Grab : MonoBehaviour
         targetRigidbody = null;
         targetCollider = null;
         target = null;
+    }
+
+    private bool IsCurrentPlacementColliding(int collisionMask)
+    {
+        if (targetCollider == null)
+        {
+            return false;
+        }
+
+        Bounds bounds = targetCollider.bounds;
+        float broadPhaseRadius = bounds.extents.magnitude + 0.01f;
+        int count = Physics.OverlapSphereNonAlloc(
+            bounds.center,
+            broadPhaseRadius,
+            releaseOverlapCandidates,
+            collisionMask,
+            QueryTriggerInteraction.Ignore
+        );
+
+        for (int i = 0; i < count; i++)
+        {
+            Collider other = releaseOverlapCandidates[i];
+            if (other == null || other == targetCollider || other == playerCollider)
+            {
+                continue;
+            }
+
+            if (Physics.ComputePenetration(
+                targetCollider,
+                target.position,
+                target.rotation,
+                other,
+                other.transform.position,
+                other.transform.rotation,
+                out _,
+                out float separationDistance) && separationDistance > 0f)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -310,5 +352,25 @@ public class Grab : MonoBehaviour
             // This makes objects appear the same size on screen regardless of distance
             target.localScale = originalScale * s;
         }
+    }
+    void Update()
+    {
+        if (target)
+        {
+              crosshairImage.color = Color.cyan; // actual target
+        }
+        else if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out RaycastHit hit, Mathf.Infinity))
+        {
+            if (((1 << hit.collider.gameObject.layer) & targetMask) != 0)
+            {
+                crosshairImage.color = Color.green; // actual target
+            }
+            else
+            {
+                crosshairImage.color = Color.white; // hit something else first
+            }
+            
+        }
+
     }
 }
