@@ -2,9 +2,9 @@ Shader "Custom/RevealShader"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
+        _MainTex ("Texture", 2D) = "black" {}
         _RevealLightPos ("Reveal Light Position", Vector) = (0,0,0,0)
-        _RevealRadius ("Reveal Radius", Float) = 5
+        _RevealRadius ("Reveal Radius", Float) = 2
     }
 
     SubShader
