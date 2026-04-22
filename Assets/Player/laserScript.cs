@@ -6,6 +6,7 @@ public class laserScript : MonoBehaviour
     private LineRenderer lr;
     public float maxDistance = 100f;
     public GameObject respawnPoint;
+    public bool isDeadly = true;
     void Start()
     {
         lr = GetComponent<LineRenderer>();
@@ -26,8 +27,17 @@ public class laserScript : MonoBehaviour
             if (hit.collider.CompareTag("Player"))
             {
                 Debug.Log("Hit: " + hit.collider.name);
-                //teleport the player to the respawn point
-                Teleport.TeleportTo(hit.collider.gameObject, respawnPoint.transform.position, respawnPoint.transform.rotation);
+                if (isDeadly)
+                {
+                    //teleport the player to the respawn point
+                    Teleport.TeleportTo(hit.collider.gameObject, respawnPoint.transform.position, respawnPoint.transform.rotation);
+                }
+            }
+            else if (hit.collider.CompareTag("Prism"))
+            {
+                PrismScript prism = hit.collider.GetComponent<PrismScript>();
+                if (prism != null)
+                    prism.NotifyHit();
             }
             
         }

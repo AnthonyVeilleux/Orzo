@@ -24,6 +24,7 @@ public class Grab : MonoBehaviour
     [SerializeField] private LayerMask releaseCollisionMask = ~0; // Layers that block release placement
     [SerializeField] private float releaseStepSize = 0.05f; // How far to move object each step when releasing
     [SerializeField] private float collisionPullback = 0.1f; // How far to pull back from collision point
+    [SerializeField] private float maxHoldDistance = 30f; // Furthest distance a held object can be projected
 
     // ========== MEMORY VARIABLES ==========
     // These store the object's state when first grabbed
@@ -70,16 +71,9 @@ public class Grab : MonoBehaviour
             {
                 RotateTarget(mouseDelta);
             }
-            
-            // ========== UPDATE POSITION WITH CAMERA ==========
-            target.position = Camera.main.transform.position + Camera.main.transform.forward * distanceFromCamera;
 
-            // ========== UPDATE ROTATION WITH CAMERA ==========
-            target.rotation = Camera.main.transform.rotation * rotationOffset;
-
-            // ========== UPDATE SCALE BASED ON HOLD DISTANCE ==========
-            float scaleFactor = distanceFromCamera / originalDistance;
-            target.localScale = originalScale * scaleFactor;
+            // Keep the held object at the furthest valid forward location each frame.
+            UpdateHeldTargetAtFarthestDistance();
         }
 
         // ========== REMEMBER STATE FOR NEXT FRAME ==========
@@ -276,6 +270,50 @@ public class Grab : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void UpdateHeldTargetAtFarthestDistance()
+    {
+        if (target == null || targetCollider == null || Camera.main == null)
+        {
+            return;
+        }
+
+        Vector3 cameraPos = Camera.main.transform.position;
+        Vector3 cameraForward = Camera.main.transform.forward;
+        int collisionMask = releaseCollisionMask.value == 0 ? ~0 : releaseCollisionMask.value;
+
+        // Apply rotation first so collision checks use the held orientation.
+        target.rotation = Camera.main.transform.rotation * rotationOffset;
+
+        float furthestValidDistance = Mathf.Max(distanceFromCamera, 0.01f);
+        float currentDistance = furthestValidDistance;
+        int maxSteps = Mathf.Max(1, Mathf.CeilToInt(maxHoldDistance / Mathf.Max(releaseStepSize, 0.001f)));
+
+        for (int i = 0; i < maxSteps; i++)
+        {
+            currentDistance += releaseStepSize;
+
+            Vector3 testPosition = cameraPos + cameraForward * currentDistance;
+            float testScaleFactor = currentDistance / Mathf.Max(originalDistance, 0.0001f);
+            Vector3 testScale = originalScale * testScaleFactor;
+
+            target.position = testPosition;
+            target.localScale = testScale;
+            Physics.SyncTransforms();
+
+            if (IsCurrentPlacementColliding(collisionMask))
+            {
+                break;
+            }
+
+            furthestValidDistance = currentDistance;
+        }
+
+        float finalScaleFactor = furthestValidDistance / Mathf.Max(originalDistance, 0.0001f);
+        target.position = cameraPos + cameraForward * furthestValidDistance;
+        target.rotation = Camera.main.transform.rotation * rotationOffset;
+        target.localScale = originalScale * finalScaleFactor;
     }
 
     /// <summary>
