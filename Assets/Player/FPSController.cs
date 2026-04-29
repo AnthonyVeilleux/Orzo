@@ -36,6 +36,10 @@ public class FPSController : MonoBehaviour
         {
             return;
         }
+        if (PauseMenu.IsPaused)
+        {
+            return;
+        }
         HandleMovement();
         HandleJumping();
         HandleRotation();

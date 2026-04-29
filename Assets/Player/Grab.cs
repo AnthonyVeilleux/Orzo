@@ -19,6 +19,8 @@ public class Grab : MonoBehaviour
     public float offsetFactor; // Base offset to prevent object from clipping into walls
     [SerializeField] private float additionalCameraOffset = 0.2f; // Extra padding distance
     [SerializeField] private float rotationSensitivity = 0.5f; // How fast object rotates with mouse
+    [SerializeField] private bool invertVerticalRotation = false; // Match common camera-style invert options
+    [SerializeField] private float rotationSmoothing = 16f; // Higher = snappier, lower = smoother
      [SerializeField] private float distanceFromCamera = 0.2f; // How far from the camera the object is initialy placed before being dropped and then rescaled.
     [SerializeField] private Collider playerCollider; // Reference to player's collider to ignore collision while holding
     [SerializeField] private LayerMask releaseCollisionMask = ~0; // Layers that block release placement
@@ -36,6 +38,7 @@ public class Grab : MonoBehaviour
     private bool wasGrabHeld; // Was the grab button pressed last frame? (for edge detection)
     private Rigidbody targetRigidbody; // Cache of the grabbed object's rigidbody component
     private Quaternion rotationOffset; // How rotated is the object relative to camera when grabbed?
+    private Quaternion desiredRotationOffset; // Smoothed target rotation offset while rotating
     private Collider targetCollider; // Cache of the grabbed object's collider component
     private readonly Collider[] releaseOverlapCandidates = new Collider[64]; // Broad-phase candidates for precise penetration tests
 
@@ -129,6 +132,7 @@ public class Grab : MonoBehaviour
             // Multiplying by target.rotation gives us the difference between camera and object rotation
             // This lets us preserve the object's rotation relationship to camera when rotating
             rotationOffset = Quaternion.Inverse(Camera.main.transform.rotation) * target.rotation;
+            desiredRotationOffset = rotationOffset;
 
             // ========== STORE ORIGINAL VALUES FOR SCALING ==========
             // Remember how far away object was when grabbed (needed for proportional scaling)
@@ -283,6 +287,9 @@ public class Grab : MonoBehaviour
         Vector3 cameraForward = Camera.main.transform.forward;
         int collisionMask = releaseCollisionMask.value == 0 ? ~0 : releaseCollisionMask.value;
 
+        float smoothT = 1f - Mathf.Exp(-Mathf.Max(0.01f, rotationSmoothing) * Time.deltaTime);
+        rotationOffset = Quaternion.Slerp(rotationOffset, desiredRotationOffset, smoothT);
+
         // Apply rotation first so collision checks use the held orientation.
         target.rotation = Camera.main.transform.rotation * rotationOffset;
 
@@ -323,19 +330,26 @@ public class Grab : MonoBehaviour
     /// <param name="mouseDelta">Mouse movement this frame (x = horizontal, y = vertical)</param>
     private void RotateTarget(Vector2 mouseDelta)
     {
-        // ========== CONVERT MOUSE MOVEMENT TO ROTATION ==========
-        // Horizontal mouse movement (left/right) rotates around the vertical axis (yaw)
-        float yaw = mouseDelta.x * rotationSensitivity;
-        
-        // Vertical mouse movement (up/down) rotates around the horizontal axis (pitch)
-        float pitch = mouseDelta.y * rotationSensitivity;
+        if (Camera.main == null)
+        {
+            return;
+        }
 
-        // ========== ACCUMULATE ROTATION ==========
-        // Apply the rotation to our stored rotationOffset
-        // Quaternion.Euler creates a rotation from euler angles (pitch, yaw, roll)
-        // Using *= means we're adding this rotation on top of previous rotations
-        // Negative pitch because mouse up should rotate up
-        rotationOffset *= Quaternion.Euler(-pitch, yaw, 0);
+        // Inspect-style controls:
+        // - Horizontal drag rotates around world up (stable left/right spin)
+        // - Vertical drag rotates around camera right (intuitive pitch)
+        float yaw = -mouseDelta.x * rotationSensitivity;
+        float pitchSign = invertVerticalRotation ? 1f : -1f;
+        float pitch = mouseDelta.y * rotationSensitivity * pitchSign;
+
+        Quaternion cameraRotation = Camera.main.transform.rotation;
+        Quaternion currentWorldRotation = cameraRotation * desiredRotationOffset;
+
+        Quaternion yawDelta = Quaternion.AngleAxis(yaw, Vector3.up);
+        Quaternion pitchDelta = Quaternion.AngleAxis(pitch, Camera.main.transform.right);
+        Quaternion updatedWorldRotation = yawDelta * pitchDelta * currentWorldRotation;
+
+        desiredRotationOffset = Quaternion.Inverse(cameraRotation) * updatedWorldRotation;
     }
 
     /// <summary>
