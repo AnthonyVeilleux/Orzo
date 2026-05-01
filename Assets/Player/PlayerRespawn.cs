@@ -51,6 +51,23 @@ public class PlayerRespawn : MonoBehaviour
         RespawnPlayer(checkpointManager);
     }
 
+    /// <summary>Reloads the scene from scratch with no checkpoint. Hook to a UI button.</summary>
+    public void RestartGame()
+    {
+        if (pauseMenu != null)
+            pauseMenu.Resume();
+        else
+            PauseMenu.ForceResumeState();
+
+        CheckpointManager checkpointManager = CheckpointManager.Instance;
+        if (checkpointManager != null)
+        {
+            checkpointManager.ClearCheckpoint();
+        }
+
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
     private void RespawnPlayer(CheckpointManager checkpointManager)
     {
         if (checkpointManager == null || !checkpointManager.HasCheckpoint())

@@ -10,6 +10,10 @@ public class LightSwitch : MonoBehaviour
     [Header("Reveal Material")]
     public Material revealMaterial; // The same material used by RevealLightController
 
+    [Header("Switch Appearance")]
+    [SerializeField] private Renderer switchRenderer;   // Renderer on this switch object
+    [SerializeField] private Material offMaterial;      // Material when lights are OFF
+    [SerializeField] private Material onMaterial;       // Material when lights are ON
     [Header("Settings")]
     [SerializeField] private float interactDistance = 3f;  // How far away the player can flip the switch
     [SerializeField] private float normalRadius = 2f;       // Radius when lights are OFF
@@ -24,6 +28,9 @@ public class LightSwitch : MonoBehaviour
     {
         grabComponent = FindAnyObjectByType<Grab>();
         originalRadius = revealMaterial.GetFloat("_RevealRadius");
+
+        // Set initial appearance
+        ApplySwitchMaterial();
     }
 
     void OnDestroy()
@@ -59,5 +66,20 @@ public class LightSwitch : MonoBehaviour
     {
         lightsOn = !lightsOn;
         revealMaterial.SetFloat("_RevealRadius", lightsOn ? revealAllRadius : normalRadius);
+        ApplySwitchMaterial();
+    }
+
+    void ApplySwitchMaterial()
+    {
+        if (switchRenderer == null)
+        {
+            return;
+        }
+
+        Material mat = lightsOn ? onMaterial : offMaterial;
+        if (mat != null)
+        {
+            switchRenderer.material = mat;
+        }
     }
 }

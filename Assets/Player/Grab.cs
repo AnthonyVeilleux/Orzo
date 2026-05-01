@@ -9,6 +9,8 @@ using UnityEngine.UI;
 public class Grab : MonoBehaviour
 {
     public UnityEngine.UI.Image crosshairImage;
+    private int goalLayer = -1;
+    private int targetLayer = -1;
     // ========== INSPECTOR FIELDS ==========
     [Header("Components")]
     public Transform target; // Reference to the currently grabbed object's Transform
@@ -27,6 +29,8 @@ public class Grab : MonoBehaviour
     [SerializeField] private float releaseStepSize = 0.05f; // How far to move object each step when releasing
     [SerializeField] private float collisionPullback = 0.1f; // How far to pull back from collision point
     [SerializeField] private float maxHoldDistance = 30f; // Furthest distance a held object can be projected
+    [SerializeField] private string goalLayerName = "Goal"; // Optional layer name to trigger auto-drop
+    [SerializeField] private string goalTag = ""; // Optional tag to trigger auto-drop (leave empty to disable)
 
     // ========== MEMORY VARIABLES ==========
     // These store the object's state when first grabbed
@@ -41,6 +45,32 @@ public class Grab : MonoBehaviour
     private Quaternion desiredRotationOffset; // Smoothed target rotation offset while rotating
     private Collider targetCollider; // Cache of the grabbed object's collider component
     private readonly Collider[] releaseOverlapCandidates = new Collider[64]; // Broad-phase candidates for precise penetration tests
+    private readonly Collider[] goalOverlapCandidates = new Collider[32]; // Nearby colliders used to detect goal overlap
+    private bool hasWarnedMissingGoalTag;
+
+    private void Awake()
+    {
+        goalLayer = LayerMask.NameToLayer(goalLayerName);
+        targetLayer = LayerMask.NameToLayer("Target");
+    }
+
+    private void Start()
+    {
+        if (playerCollider == null || goalLayer < 0)
+        {
+            return;
+        }
+
+        // Ignore collision between player and all Goal layer colliders
+        Collider[] goalColliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
+        foreach (Collider col in goalColliders)
+        {
+            if (col.gameObject.layer == goalLayer)
+            {
+                Physics.IgnoreCollision(playerCollider, col, true);
+            }
+        }
+    }
 
 
     /// <summary>
@@ -77,11 +107,71 @@ public class Grab : MonoBehaviour
 
             // Keep the held object at the furthest valid forward location each frame.
             UpdateHeldTargetAtFarthestDistance();
+
+            // Drop the object if the player walks into the goal
+            TryDropIfPlayerOverlapsGoal();
         }
 
         // ========== REMEMBER STATE FOR NEXT FRAME ==========
         // Store current grab state so we can detect button press edges next frame
         wasGrabHeld = grabHeld;
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        TryDropOnGoalCollision(collision.collider);
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        TryDropOnGoalCollision(other);
+    }
+
+    private void TryDropOnGoalCollision(Collider other)
+    {
+        if (other == null || target == null)
+        {
+            return;
+        }
+
+        if (IsGoalCollider(other))
+        {
+            Release();
+        }
+    }
+
+    private bool IsGoalCollider(Collider other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+
+        // Only use layer-based detection to avoid tag issues
+        return goalLayer >= 0 && other.gameObject.layer == goalLayer;
+    }
+
+    private void TryDropIfPlayerOverlapsGoal()
+    {
+        if (target == null || playerCollider == null || goalLayer < 0)
+        {
+            return;
+        }
+
+        Collider[] goalColliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
+        foreach (Collider col in goalColliders)
+        {
+            if (col.gameObject.layer != goalLayer)
+            {
+                continue;
+            }
+
+            if (playerCollider.bounds.Intersects(col.bounds))
+            {
+                Release();
+                return;
+            }
+        }
     }
 
     /// <summary>
@@ -99,8 +189,8 @@ public class Grab : MonoBehaviour
         // ========== RAYCAST TO FIND OBJECT ==========
         RaycastHit hit; // Stores information about what the ray hit
         
-        // Shoot a ray from camera position, in camera forward direction, infinite distance, only hitting targetMask layers
-        if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out hit, Mathf.Infinity) && ((1 << hit.collider.gameObject.layer) & targetMask) != 0)
+        // Shoot a ray from camera position, ignoring triggers so goal zones don't block grab
+        if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out hit, Mathf.Infinity, ~0, QueryTriggerInteraction.Ignore) && ((1 << hit.collider.gameObject.layer) & targetMask) != 0)
         
         {
             // ========== RAY HIT SOMETHING WE CAN GRAB ==========
@@ -210,6 +300,12 @@ public class Grab : MonoBehaviour
             // Check collision using the actual collider shape (more accurate than a bounds box).
             bool hitSomething = IsCurrentPlacementColliding(collisionMask);
             
+            // Also explicitly check for goal layer to prevent clipping through goals
+            if (!hitSomething && goalLayer >= 0)
+            {
+                hitSomething = IsCollidingWithGoal();
+            }
+            
             if (hitSomething)
             {
                 // Collision detected - move back to last valid position and pull back a bit more
@@ -276,6 +372,74 @@ public class Grab : MonoBehaviour
         return false;
     }
 
+    private bool IsCollidingWithGoal()
+    {
+        if (targetCollider == null || goalLayer < 0 || targetLayer < 0)
+        {
+            return false;
+        }
+
+        // Only check goal collision if holding a Target-layer object
+        if (target.gameObject.layer != targetLayer)
+        {
+
+            return false;
+        }
+
+        Bounds bounds = targetCollider.bounds;
+        float broadPhaseRadius = bounds.extents.magnitude + 0.01f;
+        // Ensure minimum radius for small objects so they don't slip through
+        broadPhaseRadius = Mathf.Max(broadPhaseRadius, 0.5f);
+        
+        int count = Physics.OverlapSphereNonAlloc(
+            bounds.center,
+            broadPhaseRadius,
+            releaseOverlapCandidates,
+            1 << goalLayer,
+            QueryTriggerInteraction.Collide
+        );
+
+        for (int i = 0; i < count; i++)
+        {
+            Collider other = releaseOverlapCandidates[i];
+            if (other == null || other == targetCollider || other == playerCollider)
+            {
+                continue;
+            }
+
+            // Distance-based check: if close enough to goal surface, treat as collision
+            float distanceBetweenBounds = Vector3.Distance(bounds.center, other.bounds.center) - (bounds.extents.magnitude + other.bounds.extents.magnitude);
+            if (distanceBetweenBounds <= 0.1f)
+            {
+                return true;
+            }
+
+            // Check both solid colliders and triggers
+            bool overlaps = Physics.ComputePenetration(
+                targetCollider,
+                target.position,
+                target.rotation,
+                other,
+                other.transform.position,
+                other.transform.rotation,
+                out _,
+                out float separationDistance
+            ) && separationDistance > 0f;
+
+            if (!overlaps && targetCollider.bounds.Intersects(other.bounds))
+            {
+                overlaps = true;
+            }
+
+            if (overlaps)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void UpdateHeldTargetAtFarthestDistance()
     {
         if (target == null || targetCollider == null || Camera.main == null)
@@ -309,7 +473,8 @@ public class Grab : MonoBehaviour
             target.localScale = testScale;
             Physics.SyncTransforms();
 
-            if (IsCurrentPlacementColliding(collisionMask))
+            // Stop held object at goal or normal collision (don't drop yet)
+            if (IsCurrentPlacementColliding(collisionMask) || IsCollidingWithGoal())
             {
                 break;
             }
@@ -411,17 +576,13 @@ public class Grab : MonoBehaviour
         {
               crosshairImage.color = Color.cyan; // actual target
         }
-        else if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out RaycastHit hit, Mathf.Infinity))
+        else if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out RaycastHit hit, Mathf.Infinity, ~0, QueryTriggerInteraction.Ignore))
         {
-            if (((1 << hit.collider.gameObject.layer) & targetMask) != 0)
-            {
-                crosshairImage.color = Color.green; // actual target
-            }
-            else
-            {
-                crosshairImage.color = Color.white; // hit something else first
-            }
-            
+            crosshairImage.color = ((1 << hit.collider.gameObject.layer) & targetMask) != 0 ? Color.green : Color.white;
+        }
+        else
+        {
+            crosshairImage.color = Color.white;
         }
 
     }

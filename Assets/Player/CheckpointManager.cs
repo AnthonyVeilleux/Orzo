@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class CheckpointManager : MonoBehaviour
 {
@@ -44,4 +45,10 @@ public class CheckpointManager : MonoBehaviour
 
     public Vector3 GetPosition() => checkpointPosition;
     public Quaternion GetRotation() => checkpointRotation;
+
+    public void ClearCheckpoint()
+    {
+        hasCheckpoint = false;
+        respawnAfterSceneReload = false;
+    }
 }
